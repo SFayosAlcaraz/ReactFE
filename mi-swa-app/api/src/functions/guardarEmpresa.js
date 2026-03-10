@@ -17,15 +17,8 @@ app.http('guardarEmpresa', {
         };
 
         try {
-            // Parsear el body si viene como string
-            let body;
-            if (typeof request.body === 'string') {
-                body = JSON.parse(request.body);
-            } else {
-                body = request.body;
-            }
-            
-            console.log('Datos recibidos:', body);
+            // Leer el body como JSON
+            const body = await request.json();
             
             const { id, cif, nombre, sector, direccion, localidad, codigo_postal, tutor_empresa, telefono_contacto, email_contacto, plazas_ofertadas, convenio_activo } = body;
 
@@ -35,7 +28,7 @@ app.http('guardarEmpresa', {
             if (!cif || !cif.trim() || !nombre || !nombre.trim()) {
                 return {
                     status: 400,
-                    jsonBody: { error: 'CIF:' + cif + ' y nombre: ' + nombre + ' son obligatorios' + body }
+                    jsonBody: { error: 'CIF y nombre son obligatorios' }
                 };
             }
 
