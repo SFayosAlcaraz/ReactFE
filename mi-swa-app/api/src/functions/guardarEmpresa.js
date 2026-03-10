@@ -35,7 +35,7 @@ app.http('guardarEmpresa', {
             if (!cif || !cif.trim() || !nombre || !nombre.trim()) {
                 return {
                     status: 400,
-                    jsonBody: { error: 'CIF y nombre son obligatorios' }
+                    jsonBody: { error: 'CIF:' + cif + ' y nombre: ' + nombre + ' son obligatorios' + body }
                 };
             }
 
