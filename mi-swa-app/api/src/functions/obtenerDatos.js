@@ -5,12 +5,12 @@ app.http('obtenerDatos', {
     methods: ['GET'],
     authLevel: 'anonymous',
     handler: async (request, context) => {
-        // Configuración de la base de datos (¡En producción usa Variables de Entorno!)
+        // Configuración de la base de datos usando variables de entorno
         const config = {
-            user: process.env.DB_USER || 'tu_usuario',
-            password: process.env.DB_PASSWORD || 'tu_contraseña',
-            server: process.env.DB_SERVER || 'tuservidor.database.windows.net',
-            database: process.env.DB_NAME || 'tubasededatos',
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            server: process.env.DB_SERVER,
+            database: process.env.DB_NAME,
             options: {
                 encrypt: true, 
                 trustServerCertificate: false 
