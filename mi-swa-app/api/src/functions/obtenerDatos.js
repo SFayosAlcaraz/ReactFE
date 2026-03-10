@@ -18,16 +18,25 @@ app.http('obtenerDatos', {
         };
 
         try {
-            await sql.connect(config);
-            // Cambia 'MiTabla' por el nombre real de tu tabla
-            const result = await sql.query`SELECT * FROM Empresas`;
+            const pool = new sql.ConnectionPool(config);
+            await pool.connect();
+            
+            const result = await pool.request().query(`SELECT * FROM empresas`);
+            await pool.close();
             
             return {
-                jsonBody: result.recordset
+                status: 200,
+                jsonBody: result.recordset || []
             };
         } catch (err) {
             context.error(err);
-            return { status: 500, body: "Error conectando a la base de datos" };
+            return {
+                status: 500,
+                jsonBody: {
+                    error: "Error conectando a la base de datos",
+                    details: err.message
+                }
+            };
         }
     }
 });
