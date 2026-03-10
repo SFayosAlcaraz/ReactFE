@@ -25,10 +25,14 @@ app.http('guardarEmpresa', {
                 body = request.body;
             }
             
+            console.log('Datos recibidos:', body);
+            
             const { id, cif, nombre, sector, direccion, localidad, codigo_postal, tutor_empresa, telefono_contacto, email_contacto, plazas_ofertadas, convenio_activo } = body;
 
-            // Validar campos obligatorios
-            if (!cif || !nombre) {
+            console.log('CIF:', cif, 'Nombre:', nombre);
+            
+            // Validar campos obligatorios (trim para eliminar espacios en blanco)
+            if (!cif || !cif.trim() || !nombre || !nombre.trim()) {
                 return {
                     status: 400,
                     jsonBody: { error: 'CIF y nombre son obligatorios' }

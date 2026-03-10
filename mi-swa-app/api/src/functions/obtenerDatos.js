@@ -18,23 +18,30 @@ app.http('obtenerDatos', {
         };
 
         try {
+            console.log('DB_USER:', process.env.DB_USER);
+            console.log('DB_SERVER:', process.env.DB_SERVER);
+            console.log('DB_NAME:', process.env.DB_NAME);
+            
             const pool = new sql.ConnectionPool(config);
             await pool.connect();
             
-            const result = await pool.request().query(`SELECT * FROM empresas`);
+            const result = await pool.request().query(`SELECT TOP 5 * FROM empresas`);
             await pool.close();
+            
+            console.log('Datos obtenidos:', result.recordset);
             
             return {
                 status: 200,
                 jsonBody: result.recordset || []
             };
         } catch (err) {
-            context.error(err);
+            console.error('Error detallado:', err);
             return {
                 status: 500,
                 jsonBody: {
                     error: "Error conectando a la base de datos",
-                    details: err.message
+                    details: err.message,
+                    code: err.code
                 }
             };
         }

@@ -70,13 +70,29 @@ function App() {
 
   // Abrir formulario para editar empresa
   const abrirFormularioEditar = (empresa) => {
+    console.log('Empresa a editar:', empresa);
     setEmpresaEditando(empresa.id);
-    setFormulario(empresa);
+    setFormulario({
+      cif: empresa.cif || empresa.CIF || '',
+      nombre: empresa.nombre || empresa.NOMBRE || '',
+      sector: empresa.sector || empresa.SECTOR || '',
+      direccion: empresa.direccion || empresa.DIRECCION || '',
+      localidad: empresa.localidad || empresa.LOCALIDAD || 'Alicante',
+      codigo_postal: empresa.codigo_postal || empresa.CODIGO_POSTAL || '',
+      tutor_empresa: empresa.tutor_empresa || empresa.TUTOR_EMPRESA || '',
+      telefono_contacto: empresa.telefono_contacto || empresa.TELEFONO_CONTACTO || '',
+      email_contacto: empresa.email_contacto || empresa.EMAIL_CONTACTO || '',
+      plazas_ofertadas: empresa.plazas_ofertadas || empresa.PLAZAS_OFERTADAS || 0,
+      convenio_activo: empresa.convenio_activo || empresa.CONVENIO_ACTIVO || 1
+    });
     setMostrarFormulario(true);
   };
 
   // Guardar empresa (crear o actualizar)
   const guardarEmpresa = async () => {
+    console.log('Formulario actual:', formulario);
+    console.log('CIF:', formulario.cif, 'Nombre:', formulario.nombre);
+    
     if (!formulario.cif || !formulario.nombre) {
       alert('CIF y nombre son obligatorios');
       return;
@@ -84,15 +100,19 @@ function App() {
 
     setGuardando(true);
     try {
+      const dataToSend = empresaEditando ? { ...formulario, id: empresaEditando } : formulario;
+      console.log('Datos a enviar:', dataToSend);
+      
       const response = await fetch('/api/guardarEmpresa', {
         method: empresaEditando ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(empresaEditando ? { ...formulario, id: empresaEditando } : formulario)
+        body: JSON.stringify(dataToSend)
       });
 
       const resultado = await response.json();
+      console.log('Respuesta del servidor:', resultado);
 
       if (response.ok) {
         alert(resultado.message);
