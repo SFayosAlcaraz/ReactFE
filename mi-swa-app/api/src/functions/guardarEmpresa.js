@@ -17,7 +17,14 @@ app.http('guardarEmpresa', {
         };
 
         try {
-            const body = request.body;
+            // Parsear el body si viene como string
+            let body;
+            if (typeof request.body === 'string') {
+                body = JSON.parse(request.body);
+            } else {
+                body = request.body;
+            }
+            
             const { id, cif, nombre, sector, direccion, localidad, codigo_postal, tutor_empresa, telefono_contacto, email_contacto, plazas_ofertadas, convenio_activo } = body;
 
             // Validar campos obligatorios
