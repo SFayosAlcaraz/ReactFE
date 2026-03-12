@@ -445,7 +445,7 @@ function App() {
       )}
 
       {/* Tabla de empresas (scrollable) */}
-      <div style={{ maxHeight: '60vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
+      <div style={{ maxHeight: '80vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
         <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8f9fa' }}>

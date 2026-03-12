@@ -25,7 +25,8 @@ app.http('obtenerDatos', {
             const pool = new sql.ConnectionPool(config);
             await pool.connect();
             
-            const result = await pool.request().query(`SELECT TOP 5 * FROM empresas`);
+            // quitar el TOP 5 para devolver todas las filas
+            const result = await pool.request().query(`SELECT * FROM empresas`);
             await pool.close();
             
             console.log('Datos obtenidos:', result.recordset);
