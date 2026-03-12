@@ -21,8 +21,33 @@ function App() {
     convenio_activo: 1
   });
 
-  // Cargar datos de empresas
+  // Lista de tablas según la definición SQL solicitada
+  const tableList = [
+    'Familias_profesionales',
+    'Cursos_ciclos',
+    'Provincias',
+    'Poblaciones',
+    'Alumnos',
+    'Empresas',
+    'Centros_trabajo',
+    'Alumnos_cursos',
+    'Tutores',
+    'Tutores_cursos',
+    'Contactos_empresas',
+    'Contacto_detalle'
+  ];
+
+  const [selectedTable, setSelectedTable] = useState(null);
+
+  // Cargar datos de la tabla actualmente seleccionada
   const cargarDatos = () => {
+    if (selectedTable !== 'Empresas') {
+      // por ahora sólo existe la API para empresas
+      setDatos([]);
+      setCargando(false);
+      return;
+    }
+
     setCargando(true);
     fetch('/api/obtenerDatos')
       .then(res => res.json())
@@ -37,8 +62,10 @@ function App() {
   };
 
   useEffect(() => {
-    cargarDatos();
-  }, []);
+    if (selectedTable === 'Empresas') {
+      cargarDatos();
+    }
+  }, [selectedTable]);
 
   // Manejar cambios en el formulario
   const handleInputChange = (e) => {
@@ -135,10 +162,76 @@ function App() {
     setEmpresaEditando(null);
   };
 
+  // vista de selección inicial
+  if (!selectedTable) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <h1>📁 Gestión de tablas</h1>
+        <p>Seleccione la tabla que desea editar:</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+          {tableList.map(t => (
+            <button
+              key={t}
+              onClick={() => setSelectedTable(t)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // cuando hay una tabla seleccionada que no es Empresas
+  if (selectedTable !== 'Empresas') {
+    return (
+      <div style={{ padding: '20px' }}>
+        <button
+          onClick={() => setSelectedTable(null)}
+          style={{
+            marginBottom: '20px',
+            background: 'none',
+            border: 'none',
+            color: '#007bff',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          ← Volver al menú
+        </button>
+        <h1>Gestión de {selectedTable}</h1>
+        <p>La edición de datos para <b>{selectedTable}</b> aún no está implementada.</p>
+      </div>
+    );
+  }
+
+  // si estamos mostrando la tabla de empresas, podemos mostrar la interfaz de siempre
   if (cargando) return <p>Cargando datos desde Azure SQL...</p>;
 
   return (
     <div style={{ padding: '20px' }}>
+      <button
+        onClick={() => setSelectedTable(null)}
+        style={{
+          marginBottom: '20px',
+          background: 'none',
+          border: 'none',
+          color: '#007bff',
+          cursor: 'pointer',
+          fontSize: '16px'
+        }}
+      >
+        ← Volver al menú
+      </button>
       <h1>Gestión de Empresas</h1>
       
       {/* Botón para agregar nueva empresa */}
