@@ -444,42 +444,44 @@ function App() {
         </div>
       )}
 
-      {/* Tabla de empresas */}
-      <table border="1" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f8f9fa' }}>
-            {datos.length > 0 && Object.keys(datos[0]).map(key => (
-              <th key={key} style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>{key}</th>
-            ))}
-            <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {datos.map((fila, index) => (
-            <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
-              {Object.values(fila).map((valor, i) => (
-                <td key={i} style={{ padding: '10px' }}>{valor}</td>
+      {/* Tabla de empresas (scrollable) */}
+      <div style={{ maxHeight: '60vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
+        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8f9fa' }}>
+              {datos.length > 0 && Object.keys(datos[0]).map(key => (
+                <th key={key} style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>{key}</th>
               ))}
-              <td style={{ padding: '10px', textAlign: 'center' }}>
-                <button
-                  onClick={() => abrirFormularioEditar(fila)}
-                  style={{
-                    padding: '5px 10px',
-                    backgroundColor: '#ffc107',
-                    color: 'black',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    marginRight: '5px'
-                  }}
-                >
-                  ✏️ Editar
-                </button>
-              </td>
+              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {datos.map((fila, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
+                {Object.values(fila).map((valor, i) => (
+                  <td key={i} style={{ padding: '10px' }}>{valor}</td>
+                ))}
+                <td style={{ padding: '10px', textAlign: 'center' }}>
+                  <button
+                    onClick={() => abrirFormularioEditar(fila)}
+                    style={{
+                      padding: '5px 10px',
+                      backgroundColor: '#ffc107',
+                      color: 'black',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      marginRight: '5px'
+                    }}
+                  >
+                    ✏️ Editar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {datos.length === 0 && !cargando && (
         <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay empresas registradas</p>
