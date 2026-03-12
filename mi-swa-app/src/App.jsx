@@ -3,25 +3,12 @@ import './App.css';
 
 function App() {
   const [datos, setDatos] = useState([]);
+  const [columns, setColumns] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [empresaEditando, setEmpresaEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const [formulario, setFormulario] = useState({
-    cif: '',
-    nombre: '',
-    sector: '',
-    direccion: '',
-    localidad: 'Alicante',
-    codigo_postal: '',
-    tutor_empresa: '',
-    telefono_contacto: '',
-    email_contacto: '',
-    plazas_ofertadas: 0,
-    convenio_activo: 1
-  });
+  const [formulario, setFormulario] = useState({});
 
-  // Lista de tablas según la definición SQL solicitada
   const tableList = [
     'Familias_profesionales',
     'Cursos_ciclos',
@@ -36,23 +23,24 @@ function App() {
     'Contactos_empresas',
     'Contacto_detalle'
   ];
-
   const [selectedTable, setSelectedTable] = useState(null);
 
   // Cargar datos de la tabla actualmente seleccionada
   const cargarDatos = () => {
-    if (selectedTable !== 'Empresas') {
-      // por ahora sólo existe la API para empresas
-      setDatos([]);
-      setCargando(false);
-      return;
-    }
+    if (!selectedTable) return;
 
     setCargando(true);
-    fetch('/api/obtenerDatos')
+    fetch(`/api/obtenerDatos?table=${encodeURIComponent(selectedTable)}`)
       .then(res => res.json())
       .then(data => {
-        setDatos(data);
+        // back-end returns { rows, columns }
+        if (data && data.rows) {
+          setDatos(data.rows);
+          setColumns(data.columns || (data.rows.length > 0 ? Object.keys(data.rows[0]) : []));
+        } else {
+          setDatos([]);
+          setColumns([]);
+        }
         setCargando(false);
       })
       .catch(err => {
@@ -62,7 +50,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (selectedTable === 'Empresas') {
+    if (selectedTable) {
       cargarDatos();
     }
   }, [selectedTable]);
@@ -70,68 +58,54 @@ function App() {
   // Manejar cambios en el formulario
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let newValue;
+    if (type === 'checkbox') {
+      newValue = checked ? 1 : 0;
+    } else if (value !== '' && !isNaN(value) && !value.includes('e')) {
+      // si parece número, convertir a número
+      newValue = Number(value);
+    } else {
+      newValue = value;
+    }
     setFormulario(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (checked ? 1 : 0) : (name === 'plazas_ofertadas' ? parseInt(value) : value)
+      [name]: newValue
     }));
   };
 
-  // Abrir formulario para nueva empresa
+  // Abrir formulario para nuevo registro
   const abrirFormularioNuevo = () => {
-    setEmpresaEditando(null);
-    setFormulario({
-      cif: '',
-      nombre: '',
-      sector: '',
-      direccion: '',
-      localidad: 'Alicante',
-      codigo_postal: '',
-      tutor_empresa: '',
-      telefono_contacto: '',
-      email_contacto: '',
-      plazas_ofertadas: 0,
-      convenio_activo: 1
+    const initial = {};
+    columns.forEach(col => {
+      if (col.toLowerCase() !== 'id') initial[col] = '';
     });
+    setFormulario(initial);
     setMostrarFormulario(true);
   };
 
-  // Abrir formulario para editar empresa
-  const abrirFormularioEditar = (empresa) => {
-    console.log('Empresa a editar:', empresa);
-    setEmpresaEditando(empresa.id);
-    setFormulario({
-      cif: empresa.cif || empresa.CIF || '',
-      nombre: empresa.nombre || empresa.NOMBRE || '',
-      sector: empresa.sector || empresa.SECTOR || '',
-      direccion: empresa.direccion || empresa.DIRECCION || '',
-      localidad: empresa.localidad || empresa.LOCALIDAD || 'Alicante',
-      codigo_postal: empresa.codigo_postal || empresa.CODIGO_POSTAL || '',
-      tutor_empresa: empresa.tutor_empresa || empresa.TUTOR_EMPRESA || '',
-      telefono_contacto: empresa.telefono_contacto || empresa.TELEFONO_CONTACTO || '',
-      email_contacto: empresa.email_contacto || empresa.EMAIL_CONTACTO || '',
-      plazas_ofertadas: empresa.plazas_ofertadas || empresa.PLAZAS_OFERTADAS || 0,
-      convenio_activo: empresa.convenio_activo || empresa.CONVENIO_ACTIVO || 1
+  // Abrir formulario para editar registro
+  const abrirFormularioEditar = (row) => {
+    const copy = {};
+    columns.forEach(col => {
+      copy[col] = row[col] !== undefined ? row[col] : '';
     });
+    setFormulario(copy);
     setMostrarFormulario(true);
   };
-
-  // Guardar empresa (crear o actualizar)
-  const guardarEmpresa = async () => {
+  // Guardar registro en la tabla actual
+  const guardarRegistro = async () => {
     console.log('Formulario actual:', formulario);
-    console.log('CIF:', formulario.cif, 'Nombre:', formulario.nombre);
-    
-    if (!formulario.cif || !formulario.nombre) {
-      alert('CIF y nombre son obligatorios');
-      return;
-    }
+    if (!selectedTable) return;
 
     setGuardando(true);
     try {
-      const dataToSend = empresaEditando ? { ...formulario, id: empresaEditando } : formulario;
-      console.log('Datos a enviar:', dataToSend);
-      
-      const response = await fetch('/api/guardarEmpresa', {
-        method: empresaEditando ? 'PUT' : 'POST',
+      const isEdit = formulario.id !== undefined && formulario.id !== null && formulario.id !== '';
+      const method = isEdit ? 'PUT' : 'POST';
+      const endpoint = `/api/guardarDatos?table=${encodeURIComponent(selectedTable)}`;
+      const dataToSend = { ...formulario };
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -150,16 +124,15 @@ function App() {
       }
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar la empresa');
+      alert('Error al guardar registro');
     } finally {
       setGuardando(false);
     }
   };
-
   // Cerrar formulario
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
-    setEmpresaEditando(null);
+    setFormulario({});
   };
 
   // vista de selección inicial
@@ -172,7 +145,7 @@ function App() {
           {tableList.map(t => (
             <button
               key={t}
-              onClick={() => setSelectedTable(t)}
+              onClick={() => { setSelectedTable(t); setDatos([]); setColumns([]); }}
               style={{
                 padding: '10px 20px',
                 backgroundColor: '#007bff',
@@ -191,30 +164,6 @@ function App() {
     );
   }
 
-  // cuando hay una tabla seleccionada que no es Empresas
-  if (selectedTable !== 'Empresas') {
-    return (
-      <div style={{ padding: '20px' }}>
-        <button
-          onClick={() => setSelectedTable(null)}
-          style={{
-            marginBottom: '20px',
-            background: 'none',
-            border: 'none',
-            color: '#007bff',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          ← Volver al menú
-        </button>
-        <h1>Gestión de {selectedTable}</h1>
-        <p>La edición de datos para <b>{selectedTable}</b> aún no está implementada.</p>
-      </div>
-    );
-  }
-
-  // si estamos mostrando la tabla de empresas, podemos mostrar la interfaz de siempre
   if (cargando) return <p>Cargando datos desde Azure SQL...</p>;
 
   return (
@@ -232,9 +181,9 @@ function App() {
       >
         ← Volver al menú
       </button>
-      <h1>Gestión de Empresas</h1>
+      <h1>Gestión de {selectedTable}</h1>
       
-      {/* Botón para agregar nueva empresa */}
+      {/* Botón para agregar nuevo registro */}
       <button 
         onClick={abrirFormularioNuevo}
         style={{
@@ -248,7 +197,7 @@ function App() {
           fontSize: '16px'
         }}
       >
-        ➕ Agregar Nueva Empresa
+        ➕ Agregar Nuevo Registro
       </button>
 
       {/* Formulario Modal */}
@@ -275,139 +224,8 @@ function App() {
             overflowY: 'auto',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }}>
-            <h2>{empresaEditando ? 'Editar Empresa' : 'Nueva Empresa'}</h2>
+            <h2>{formulario.id ? `Editar ${selectedTable}` : `Nuevo registro en ${selectedTable}`}</h2>
             
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CIF *</label>
-              <input
-                type="text"
-                name="cif"
-                value={formulario.cif}
-                onChange={handleInputChange}
-                placeholder="Ej: A12345678"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-              <input
-                type="text"
-                name="nombre"
-                value={formulario.nombre}
-                onChange={handleInputChange}
-                placeholder="Nombre de la empresa"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Sector</label>
-              <input
-                type="text"
-                name="sector"
-                value={formulario.sector}
-                onChange={handleInputChange}
-                placeholder="Ej: Tecnología"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dirección</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formulario.direccion}
-                onChange={handleInputChange}
-                placeholder="Dirección completa"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Localidad</label>
-              <input
-                type="text"
-                name="localidad"
-                value={formulario.localidad}
-                onChange={handleInputChange}
-                placeholder="Alicante"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Código Postal</label>
-              <input
-                type="text"
-                name="codigo_postal"
-                value={formulario.codigo_postal}
-                onChange={handleInputChange}
-                placeholder="Ej: 03001"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Tutor de Empresa</label>
-              <input
-                type="text"
-                name="tutor_empresa"
-                value={formulario.tutor_empresa}
-                onChange={handleInputChange}
-                placeholder="Nombre del tutor"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Teléfono de Contacto</label>
-              <input
-                type="text"
-                name="telefono_contacto"
-                value={formulario.telefono_contacto}
-                onChange={handleInputChange}
-                placeholder="Ej: 965123456"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email de Contacto</label>
-              <input
-                type="email"
-                name="email_contacto"
-                value={formulario.email_contacto}
-                onChange={handleInputChange}
-                placeholder="empresa@ejemplo.com"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Plazas Ofertadas</label>
-              <input
-                type="number"
-                name="plazas_ofertadas"
-                value={formulario.plazas_ofertadas}
-                onChange={handleInputChange}
-                min="0"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  name="convenio_activo"
-                  checked={formulario.convenio_activo === 1}
-                  onChange={handleInputChange}
-                />
-                <span style={{ fontWeight: 'bold' }}>Convenio Activo</span>
-              </label>
-            </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
@@ -425,7 +243,7 @@ function App() {
                 Cancelar
               </button>
               <button
-                onClick={guardarEmpresa}
+                onClick={guardarRegistro}
                 disabled={guardando}
                 style={{
                   padding: '10px 20px',
@@ -444,12 +262,12 @@ function App() {
         </div>
       )}
 
-      {/* Tabla de empresas (scrollable) */}
+      {/* Tabla de {selectedTable} (scrollable) */}
       <div style={{ maxHeight: '80vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
         <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8f9fa' }}>
-              {datos.length > 0 && Object.keys(datos[0]).map(key => (
+              {columns.map(key => (
                 <th key={key} style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>{key}</th>
               ))}
               <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>Acciones</th>
@@ -458,8 +276,8 @@ function App() {
           <tbody>
             {datos.map((fila, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
-                {Object.values(fila).map((valor, i) => (
-                  <td key={i} style={{ padding: '10px' }}>{valor}</td>
+                {columns.map((col, i) => (
+                  <td key={i} style={{ padding: '10px' }}>{fila[col]}</td>
                 ))}
                 <td style={{ padding: '10px', textAlign: 'center' }}>
                   <button
@@ -484,7 +302,7 @@ function App() {
       </div>
 
       {datos.length === 0 && !cargando && (
-        <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay empresas registradas</p>
+        <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay registros en {selectedTable}</p>
       )}
     </div>
   );
