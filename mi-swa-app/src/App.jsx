@@ -30,7 +30,10 @@ function App() {
     if (!selectedTable) return;
 
     setCargando(true);
-    fetch(`/api/obtenerDatos?table=${encodeURIComponent(selectedTable)}`)
+    // prefer dedicated endpoint if exists
+    const readEndpoint = `/api/obtener_${selectedTable}`;
+    const url = readEndpoint; // generic query version still works but we call specific
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         // back-end returns { rows, columns }
@@ -101,8 +104,7 @@ function App() {
     try {
       const isEdit = formulario.id !== undefined && formulario.id !== null && formulario.id !== '';
       const method = isEdit ? 'PUT' : 'POST';
-      const endpoint = `/api/guardarDatos?table=${encodeURIComponent(selectedTable)}`;
-      const dataToSend = { ...formulario };
+      const endpoint = `/api/guardar_${selectedTable}`; // each table has its own save function      const dataToSend = { ...formulario };
 
       const response = await fetch(endpoint, {
         method,
