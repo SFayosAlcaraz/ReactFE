@@ -9,6 +9,23 @@ function App() {
   const [guardando, setGuardando] = useState(false);
   const [formulario, setFormulario] = useState({});
 
+  const normalizarRespuestaTabla = (data) => {
+    // Compatibilidad con distintos formatos de respuesta del backend
+    if (Array.isArray(data)) {
+      return {
+        rows: data,
+        columns: data.length > 0 ? Object.keys(data[0]) : []
+      };
+    }
+
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const columns = Array.isArray(data?.columns)
+      ? data.columns
+      : (rows.length > 0 ? Object.keys(rows[0]) : []);
+
+    return { rows, columns };
+  };
+
   const tableList = [
     'Familias_profesionales',
     'Cursos_ciclos',
@@ -30,20 +47,28 @@ function App() {
     if (!selectedTable) return;
 
     setCargando(true);
-    // prefer dedicated endpoint if exists
-    const readEndpoint = `/api/obtener_${selectedTable}`;
-    const url = readEndpoint; // generic query version still works but we call specific
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        // back-end returns { rows, columns }
-        if (data && data.rows) {
-          setDatos(data.rows);
-          setColumns(data.columns || (data.rows.length > 0 ? Object.keys(data.rows[0]) : []));
-        } else {
-          setDatos([]);
-          setColumns([]);
+    const readEndpoints = [
+      `/api/obtener_${selectedTable}`,
+      `/api/obtenerDatos?table=${selectedTable}`
+    ];
+
+    fetch(readEndpoints[0])
+      .then(async (res) => {
+        if (res.ok) {
+          return res.json();
         }
+
+        // fallback al endpoint genérico si no existe el endpoint dedicado
+        const fallback = await fetch(readEndpoints[1]);
+        if (!fallback.ok) {
+          throw new Error(`No se pudieron obtener datos de ${selectedTable}`);
+        }
+        return fallback.json();
+      })
+      .then(data => {
+        const { rows, columns: tableColumns } = normalizarRespuestaTabla(data);
+        setDatos(rows);
+        setColumns(tableColumns);
         setCargando(false);
       })
       .catch(err => {
