@@ -8,6 +8,8 @@ function App() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [formulario, setFormulario] = useState({});
+  const [vistas, setVistas] = useState([]);
+  const [cargandoVistas, setCargandoVistas] = useState(false);
 
   const normalizarRespuestaTabla = (data) => {
     // Compatibilidad con distintos formatos de respuesta del backend
@@ -24,6 +26,24 @@ function App() {
       : (rows.length > 0 ? Object.keys(rows[0]) : []);
 
     return { rows, columns };
+  };
+
+
+  const cargarVistas = async () => {
+    setCargandoVistas(true);
+    try {
+      const response = await fetch('/api/obtenerVistas');
+      if (!response.ok) {
+        throw new Error('No se pudieron cargar las vistas');
+      }
+      const data = await response.json();
+      setVistas(Array.isArray(data?.vistas) ? data.vistas : []);
+    } catch (error) {
+      console.error('Error al cargar vistas:', error);
+      setVistas([]);
+    } finally {
+      setCargandoVistas(false);
+    }
   };
 
   const tableList = [
@@ -80,6 +100,7 @@ function App() {
   useEffect(() => {
     if (selectedTable) {
       cargarDatos();
+      cargarVistas();
     }
   }, [selectedTable]);
 
@@ -374,6 +395,55 @@ function App() {
       {datos.length === 0 && !cargando && (
         <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay registros en {selectedTable}</p>
       )}
+
+      <div style={{ marginTop: '30px' }}>
+        <h2>Vistas de la base de datos</h2>
+        {cargandoVistas && <p>Cargando vistas...</p>}
+
+        {!cargandoVistas && vistas.length === 0 && (
+          <p style={{ color: '#666' }}>No hay vistas disponibles para mostrar.</p>
+        )}
+
+        {!cargandoVistas && vistas.map((vista) => (
+          <div key={vista.nombre} style={{ marginBottom: '24px' }}>
+            <h3 style={{ marginBottom: '8px' }}>{vista.nombre}</h3>
+            <div
+              style={{
+                maxHeight: '250px',
+                overflowY: 'auto',
+                overflowX: 'auto',
+                border: '1px solid #dee2e6'
+              }}
+            >
+              <table border="1" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    {vista.columns.map((col) => (
+                      <th
+                        key={`${vista.nombre}-${col}`}
+                        style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {vista.rows.map((fila, idx) => (
+                    <tr key={`${vista.nombre}-${idx}`} style={{ borderBottom: '1px solid #dee2e6' }}>
+                      {vista.columns.map((col) => (
+                        <td key={`${vista.nombre}-${idx}-${col}`} style={{ padding: '10px' }}>
+                          {String(fila[col] ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
