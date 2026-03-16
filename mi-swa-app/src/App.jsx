@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
+const viewsList = [
+  { nombre: 'vContactosEmpresas', etiqueta: 'Contactos por empresa' },
+  { nombre: 'vEmpresas_aceptan_alumnos', etiqueta: 'Empresas que aceptan alumnos' },
+  { nombre: 'vEmpresas_contactadas', etiqueta: 'Empresas contactadas' },
+  { nombre: 'vEmpresas_sin_contactar', etiqueta: 'Empresas sin contactar' },
+  { nombre: 'vRecuentoEmpresas', etiqueta: 'Recuento de empresas' }
+];
+
 function App() {
   const [datos, setDatos] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -8,6 +16,45 @@ function App() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [formulario, setFormulario] = useState({});
+  const [vistaSeleccionada, setVistaSeleccionada] = useState(null);
+  const [datosVista, setDatosVista] = useState(null);
+  const [cargandoVista, setCargandoVista] = useState(false);
+
+  const normalizarRespuestaTabla = (data) => {
+    if (Array.isArray(data)) {
+      return {
+        rows: data,
+        columns: data.length > 0 ? Object.keys(data[0]) : []
+      };
+    }
+
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const tableColumns = Array.isArray(data?.columns)
+      ? data.columns
+      : (rows.length > 0 ? Object.keys(rows[0]) : []);
+
+    return { rows, columns: tableColumns };
+  };
+
+  const cargarVista = async (nombreVista) => {
+    setVistaSeleccionada(nombreVista);
+    setCargandoVista(true);
+    setDatosVista(null);
+
+    try {
+      const response = await fetch(`/api/obtenerVistas?view=${encodeURIComponent(nombreVista)}`);
+      if (!response.ok) {
+        throw new Error('No se pudo cargar la vista seleccionada');
+      }
+      const data = await response.json();
+      setDatosVista(data);
+    } catch (error) {
+      console.error('Error al cargar vista:', error);
+      setDatosVista({ nombre: nombreVista, rows: [], columns: [] });
+    } finally {
+      setCargandoVista(false);
+    }
+  };
 
   const tableList = [
     'Familias_profesionales',
@@ -25,29 +72,35 @@ function App() {
   ];
   const [selectedTable, setSelectedTable] = useState(null);
 
-  // Cargar datos de la tabla actualmente seleccionada
   const cargarDatos = () => {
     if (!selectedTable) return;
 
     setCargando(true);
-    // prefer dedicated endpoint if exists
-    const readEndpoint = `/api/obtener_${selectedTable}`;
-    const url = readEndpoint; // generic query version still works but we call specific
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        // back-end returns { rows, columns }
-        if (data && data.rows) {
-          setDatos(data.rows);
-          setColumns(data.columns || (data.rows.length > 0 ? Object.keys(data.rows[0]) : []));
-        } else {
-          setDatos([]);
-          setColumns([]);
+    const readEndpoints = [
+      `/api/obtener_${selectedTable}`,
+      `/api/obtenerDatos?table=${selectedTable}`
+    ];
+
+    fetch(readEndpoints[0])
+      .then(async (res) => {
+        if (res.ok) {
+          return res.json();
         }
+
+        const fallback = await fetch(readEndpoints[1]);
+        if (!fallback.ok) {
+          throw new Error(`No se pudieron obtener datos de ${selectedTable}`);
+        }
+        return fallback.json();
+      })
+      .then(data => {
+        const { rows, columns: tableColumns } = normalizarRespuestaTabla(data);
+        setDatos(rows);
+        setColumns(tableColumns);
         setCargando(false);
       })
       .catch(err => {
-        console.error("Error al obtener datos:", err);
+        console.error('Error al obtener datos:', err);
         setCargando(false);
       });
   };
@@ -55,17 +108,17 @@ function App() {
   useEffect(() => {
     if (selectedTable) {
       cargarDatos();
+      setVistaSeleccionada(null);
+      setDatosVista(null);
     }
   }, [selectedTable]);
 
-  // Manejar cambios en el formulario
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newValue;
     if (type === 'checkbox') {
       newValue = checked ? 1 : 0;
     } else if (value !== '' && !isNaN(value) && !value.includes('e')) {
-      // si parece número, convertir a número
       newValue = Number(value);
     } else {
       newValue = value;
@@ -76,7 +129,6 @@ function App() {
     }));
   };
 
-  // Abrir formulario para nuevo registro
   const abrirFormularioNuevo = () => {
     const initial = {};
     columns.forEach(col => {
@@ -86,7 +138,6 @@ function App() {
     setMostrarFormulario(true);
   };
 
-  // Abrir formulario para editar registro
   const abrirFormularioEditar = (row) => {
     const copy = {};
     columns.forEach(col => {
@@ -95,28 +146,25 @@ function App() {
     setFormulario(copy);
     setMostrarFormulario(true);
   };
-  // Guardar registro en la tabla actual
+
   const guardarRegistro = async () => {
-    console.log('Formulario actual:', formulario);
     if (!selectedTable) return;
 
     setGuardando(true);
     try {
       const isEdit = formulario.id !== undefined && formulario.id !== null && formulario.id !== '';
       const method = isEdit ? 'PUT' : 'POST';
-      const endpoint = `/api/guardar_${selectedTable}`; // each table has its own save function
-      const dataToSend = { ...formulario };
+      const endpoint = `/api/guardar_${selectedTable}`;
 
       const response = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(dataToSend)
+        body: JSON.stringify(formulario)
       });
 
       const resultado = await response.json();
-      console.log('Respuesta del servidor:', resultado);
 
       if (response.ok) {
         alert(resultado.message);
@@ -132,13 +180,12 @@ function App() {
       setGuardando(false);
     }
   };
-  // Cerrar formulario
+
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
     setFormulario({});
   };
 
-  // vista de selección inicial
   if (!selectedTable) {
     return (
       <div style={{ padding: '20px' }}>
@@ -185,9 +232,8 @@ function App() {
         ← Volver al menú
       </button>
       <h1>Gestión de {selectedTable}</h1>
-      
-      {/* Botón para agregar nuevo registro */}
-      <button 
+
+      <button
         onClick={abrirFormularioNuevo}
         style={{
           padding: '10px 20px',
@@ -203,7 +249,6 @@ function App() {
         ➕ Agregar Nuevo Registro
       </button>
 
-      {/* Formulario Modal */}
       {mostrarFormulario && (
         <div style={{
           position: 'fixed',
@@ -307,7 +352,6 @@ function App() {
         </div>
       )}
 
-      {/* Tabla de {selectedTable} (scrollable) */}
       <div style={{ maxHeight: '80vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
         <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -349,6 +393,77 @@ function App() {
       {datos.length === 0 && !cargando && (
         <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay registros en {selectedTable}</p>
       )}
+
+      <div style={{ marginTop: '30px' }}>
+        <h2>Vistas de la base de datos</h2>
+        <p>Seleccione una vista para visualizar su contenido:</p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+          {viewsList.map((vista) => (
+            <button
+              key={vista.nombre}
+              onClick={() => cargarVista(vista.nombre)}
+              style={{
+                padding: '8px 14px',
+                backgroundColor: vistaSeleccionada === vista.nombre ? '#0056b3' : '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {vista.etiqueta}
+            </button>
+          ))}
+        </div>
+
+        {cargandoVista && <p>Cargando vista...</p>}
+
+        {!cargandoVista && !datosVista && (
+          <p style={{ color: '#666' }}>Pulse un botón para cargar una vista.</p>
+        )}
+
+        {!cargandoVista && datosVista && (
+          <div>
+            <h3 style={{ marginBottom: '8px' }}>{datosVista.nombre}</h3>
+            <div
+              style={{
+                maxHeight: '250px',
+                overflowY: 'auto',
+                overflowX: 'auto',
+                border: '1px solid #dee2e6'
+              }}
+            >
+              <table border="1" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    {(datosVista.columns || []).map((col) => (
+                      <th
+                        key={`${datosVista.nombre}-${col}`}
+                        style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(datosVista.rows || []).map((fila, idx) => (
+                    <tr key={`${datosVista.nombre}-${idx}`} style={{ borderBottom: '1px solid #dee2e6' }}>
+                      {(datosVista.columns || []).map((col) => (
+                        <td key={`${datosVista.nombre}-${idx}-${col}`} style={{ padding: '10px' }}>
+                          {String(fila[col] ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
