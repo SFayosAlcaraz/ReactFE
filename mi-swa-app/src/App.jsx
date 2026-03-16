@@ -104,7 +104,8 @@ function App() {
     try {
       const isEdit = formulario.id !== undefined && formulario.id !== null && formulario.id !== '';
       const method = isEdit ? 'PUT' : 'POST';
-      const endpoint = `/api/guardar_${selectedTable}`; // each table has its own save function      const dataToSend = { ...formulario };
+      const endpoint = `/api/guardar_${selectedTable}`; // each table has its own save function
+      const dataToSend = { ...formulario };
 
       const response = await fetch(endpoint, {
         method,
@@ -227,7 +228,49 @@ function App() {
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }}>
             <h2>{formulario.id ? `Editar ${selectedTable}` : `Nuevo registro en ${selectedTable}`}</h2>
-            
+            <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+              {columns
+                .filter(col => {
+                  if (col.toLowerCase() === 'id' && !formulario.id) return false;
+                  return true;
+                })
+                .map(col => {
+                  const isId = col.toLowerCase() === 'id';
+                  const value = formulario[col] ?? '';
+                  const isBooleanField = typeof value === 'boolean' || value === 0 || value === 1;
+
+                  return (
+                    <div key={col} style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                        {col}
+                      </label>
+                      {isBooleanField ? (
+                        <input
+                          type="checkbox"
+                          name={col}
+                          checked={Boolean(value)}
+                          onChange={handleInputChange}
+                          disabled={guardando || isId}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          name={col}
+                          value={value}
+                          onChange={handleInputChange}
+                          disabled={guardando || isId}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px'
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
