@@ -28,16 +28,34 @@ const allowedTables = [
     'Contacto_detalle'
 ];
 
-function validateTable(name) {
+const allowedViews = [
+    'vContactosEmpresas',
+    'vEmpresas_aceptan_alumnos',
+    'vEmpresas_contactadas',
+    'vEmpresas_sin_contactar',
+    'vRecuentoEmpresas'
+];
+
+const readableSources = [...allowedTables, ...allowedViews];
+
+function validateReadableSource(name) {
+    if (!readableSources.includes(name)) {
+        const err = new Error('Origen de datos no permitido');
+        err.status = 400;
+        throw err;
+    }
+}
+
+function validateWritableTable(name) {
     if (!allowedTables.includes(name)) {
-        const err = new Error('Tabla no permitida');
+        const err = new Error('Tabla no permitida para escritura');
         err.status = 400;
         throw err;
     }
 }
 
 async function readTable(table) {
-    validateTable(table);
+    validateReadableSource(table);
     const config = await getConfig();
     const pool = new sql.ConnectionPool(config);
     await pool.connect();
@@ -61,7 +79,7 @@ async function readTable(table) {
 }
 
 async function writeTable(table, body) {
-    validateTable(table);
+    validateWritableTable(table);
     const config = await getConfig();
     const pool = new sql.ConnectionPool(config);
     await pool.connect();
@@ -144,4 +162,4 @@ async function writeTable(table, body) {
     };
 }
 
-module.exports = { readTable, writeTable, allowedTables };
+module.exports = { readTable, writeTable, allowedTables, allowedViews, readableSources };
