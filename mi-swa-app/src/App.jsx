@@ -4,6 +4,7 @@ import './App.css';
 function App() {
   const [datos, setDatos] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [filtros, setFiltros] = useState({});
   const [cargando, setCargando] = useState(true);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -49,9 +50,11 @@ function App() {
         if (data && data.rows) {
           setDatos(data.rows);
           setColumns(data.columns || (data.rows.length > 0 ? Object.keys(data.rows[0]) : []));
+          setFiltros({});
         } else {
           setDatos([]);
           setColumns([]);
+          setFiltros({});
         }
         setCargando(false);
       })
@@ -66,6 +69,29 @@ function App() {
       cargarDatos();
     }
   }, [selectedTable]);
+
+  const handleFiltroChange = (columna, valor) => {
+    setFiltros(prev => ({
+      ...prev,
+      [columna]: valor
+    }));
+  };
+
+  const datosFiltrados = datos.filter((fila) =>
+    columns.every((col) => {
+      const filtro = filtros[col];
+      if (!filtro) return true;
+      const valorCelda = fila[col] ?? '';
+      return String(valorCelda) === filtro;
+    })
+  );
+
+  const opcionesFiltroPorColumna = columns.reduce((acc, col) => {
+    acc[col] = [...new Set(datos.map((fila) => String(fila[col] ?? '')))].sort((a, b) =>
+      a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' })
+    );
+    return acc;
+  }, {});
 
   // Manejar cambios en el formulario
   const handleInputChange = (e) => {
@@ -217,6 +243,28 @@ function App() {
         ← Volver al menú
       </button>
       <h1>{isViewSelected ? 'Consulta de' : 'Gestión de'} {selectedTable}</h1>
+
+      {isViewSelected && columns.length > 0 && (
+        <div style={{ marginBottom: '20px', display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          {columns.map((columna) => (
+            <label key={columna} style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px' }}>
+              Filtrar por {columna}
+              <select
+                value={filtros[columna] ?? ''}
+                onChange={(e) => handleFiltroChange(columna, e.target.value)}
+                style={{ padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+              >
+                <option value="">Todos</option>
+                {opcionesFiltroPorColumna[columna]?.map((valor) => (
+                  <option key={valor || '__vacio__'} value={valor}>
+                    {valor || '(Vacío)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      )}
       
       {/* Botón para agregar nuevo registro */}
       {!isViewSelected && (
@@ -355,7 +403,7 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {datos.map((fila, index) => (
+            {datosFiltrados.map((fila, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
                 {columns.map((col, i) => (
                   <td key={i} style={{ padding: '10px' }}>{fila[col]}</td>
@@ -384,7 +432,7 @@ function App() {
         </table>
       </div>
 
-      {datos.length === 0 && !cargando && (
+      {datosFiltrados.length === 0 && !cargando && (
         <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>No hay registros en {selectedTable}</p>
       )}
     </div>
