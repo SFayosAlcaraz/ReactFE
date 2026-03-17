@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import './App.css';
 
 const apiGet = async (url) => {
@@ -25,7 +25,8 @@ function CrudSection({ title, description, tableName, parentFilter }) {
   const [formData, setFormData] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const foreignKeyMap = useMemo(
     () => Object.fromEntries((metadata?.foreignKeys || []).map((fk) => [fk.columnName, fk])),
@@ -56,6 +57,7 @@ function CrudSection({ title, description, tableName, parentFilter }) {
       setRows(tableData.rows || []);
       setColumns(resolvedColumns);
       setMetadata(tableMeta);
+      setHasLoaded(true);
 
       const fkEntries = await Promise.all((tableMeta.foreignKeys || []).map(async (fk) => {
         try {
@@ -81,10 +83,6 @@ function CrudSection({ title, description, tableName, parentFilter }) {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, [tableName]);
 
   const openNewForm = () => {
     const initial = {};
@@ -133,10 +131,17 @@ function CrudSection({ title, description, tableName, parentFilter }) {
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
-        <button onClick={openNewForm}>+ Añadir</button>
+        <div className="menu-actions">
+          <button className="secondary" onClick={loadData} disabled={loading}>
+            {loading ? 'Cargando...' : hasLoaded ? 'Recargar datos' : 'Cargar datos'}
+          </button>
+          <button onClick={openNewForm} disabled={!hasLoaded || loading}>+ Añadir</button>
+        </div>
       </div>
 
-      {loading ? <p>Cargando...</p> : (
+      {!hasLoaded && !loading ? (
+        <p className="empty">Carga los datos cuando lo necesites.</p>
+      ) : loading ? <p>Cargando...</p> : (
         <>
           <div className="table-wrap">
             <table>
@@ -214,12 +219,22 @@ function CrudSection({ title, description, tableName, parentFilter }) {
 function SpecializedManagementPage() {
   const [selectedEmpresaId, setSelectedEmpresaId] = useState('');
   const [empresas, setEmpresas] = useState([]);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
+  const [empresasLoaded, setEmpresasLoaded] = useState(false);
 
-  useEffect(() => {
+  const loadEmpresas = async () => {
+    setLoadingEmpresas(true);
     apiGet('/api/obtener_Empresas')
-      .then((data) => setEmpresas(data.rows || []))
-      .catch(() => setEmpresas([]));
-  }, []);
+      .then((data) => {
+        setEmpresas(data.rows || []);
+        setEmpresasLoaded(true);
+      })
+      .catch(() => {
+        setEmpresas([]);
+        setEmpresasLoaded(true);
+      })
+      .finally(() => setLoadingEmpresas(false));
+  };
 
   return (
     <div className="page">
@@ -237,6 +252,9 @@ function SpecializedManagementPage() {
       <div className="section-card">
         <h3>Contexto de empresa</h3>
         <p>Elige empresa para filtrar contactos y formaciones vinculadas.</p>
+        <button className="secondary" onClick={loadEmpresas} disabled={loadingEmpresas}>
+          {loadingEmpresas ? 'Cargando...' : empresasLoaded ? 'Recargar empresas' : 'Cargar empresas'}
+        </button>
         <select value={selectedEmpresaId} onChange={(e) => setSelectedEmpresaId(e.target.value)}>
           <option value="">Todas las empresas</option>
           {empresas.map((empresa) => (
