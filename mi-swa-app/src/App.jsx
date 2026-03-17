@@ -244,7 +244,7 @@ function App() {
       </button>
       <h1>{isViewSelected ? 'Consulta de' : 'Gestión de'} {selectedTable}</h1>
 
-      {isViewSelected && columns.length > 0 && (
+      {columns.length > 0 && (
         <div style={{ marginBottom: '20px', display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
           {columns.map((columna) => (
             <label key={columna} style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px' }}>
