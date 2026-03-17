@@ -162,4 +162,52 @@ async function writeTable(table, body) {
     };
 }
 
-module.exports = { readTable, writeTable, allowedTables, allowedViews, readableSources };
+async function getTableMetadata(table) {
+    validateWritableTable(table);
+    const config = await getConfig();
+    const pool = new sql.ConnectionPool(config);
+    await pool.connect();
+
+    const columnsRes = await pool.request()
+        .input('table', sql.NVarChar(128), table)
+        .query(`
+            SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = @table
+            ORDER BY ORDINAL_POSITION
+        `);
+
+    const foreignKeysRes = await pool.request()
+        .input('table', sql.NVarChar(128), table)
+        .query(`
+            SELECT
+                KCU.COLUMN_NAME AS columnName,
+                KCU2.TABLE_NAME AS referencedTable,
+                KCU2.COLUMN_NAME AS referencedColumn
+            FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
+                ON KCU.CONSTRAINT_CATALOG = RC.CONSTRAINT_CATALOG
+                AND KCU.CONSTRAINT_SCHEMA = RC.CONSTRAINT_SCHEMA
+                AND KCU.CONSTRAINT_NAME = RC.CONSTRAINT_NAME
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU2
+                ON KCU2.CONSTRAINT_CATALOG = RC.UNIQUE_CONSTRAINT_CATALOG
+                AND KCU2.CONSTRAINT_SCHEMA = RC.UNIQUE_CONSTRAINT_SCHEMA
+                AND KCU2.CONSTRAINT_NAME = RC.UNIQUE_CONSTRAINT_NAME
+                AND KCU2.ORDINAL_POSITION = KCU.ORDINAL_POSITION
+            WHERE KCU.TABLE_NAME = @table
+        `);
+
+    await pool.close();
+
+    return {
+        table,
+        columns: columnsRes.recordset.map(c => ({
+            name: c.COLUMN_NAME,
+            type: c.DATA_TYPE,
+            nullable: c.IS_NULLABLE === 'YES'
+        })),
+        foreignKeys: foreignKeysRes.recordset || []
+    };
+}
+
+module.exports = { readTable, writeTable, getTableMetadata, allowedTables, allowedViews, readableSources };

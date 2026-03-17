@@ -9,6 +9,8 @@ function App() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [formulario, setFormulario] = useState({});
+  const [tableMetadata, setTableMetadata] = useState(null);
+  const [fkOptions, setFkOptions] = useState({});
 
   const tableList = [
     'Familias_profesionales',
@@ -35,21 +37,18 @@ function App() {
   const [selectedTable, setSelectedTable] = useState(null);
   const isViewSelected = selectedTable ? viewList.includes(selectedTable) : false;
 
-  // Cargar datos de la tabla actualmente seleccionada
+  const getColumnsFromRows = (rows = []) => (rows.length > 0 ? Object.keys(rows[0]) : []);
+
   const cargarDatos = () => {
     if (!selectedTable) return;
 
     setCargando(true);
-    // prefer dedicated endpoint if exists
-    const readEndpoint = `/api/obtener_${selectedTable}`;
-    const url = readEndpoint; // generic query version still works but we call specific
-    fetch(url)
+    fetch(`/api/obtener_${selectedTable}`)
       .then(res => res.json())
       .then(data => {
-        // back-end returns { rows, columns }
         if (data && data.rows) {
           setDatos(data.rows);
-          setColumns(data.columns || (data.rows.length > 0 ? Object.keys(data.rows[0]) : []));
+          setColumns(data.columns || getColumnsFromRows(data.rows));
           setFiltros({});
         } else {
           setDatos([]);
@@ -59,14 +58,56 @@ function App() {
         setCargando(false);
       })
       .catch(err => {
-        console.error("Error al obtener datos:", err);
+        console.error('Error al obtener datos:', err);
         setCargando(false);
       });
+  };
+
+  const cargarMetadata = async () => {
+    if (!selectedTable || isViewSelected) {
+      setTableMetadata(null);
+      setFkOptions({});
+      return;
+    }
+
+    try {
+      const metaRes = await fetch(`/api/metadata_${selectedTable}`);
+      const metaData = await metaRes.json();
+      setTableMetadata(metaData);
+
+      if (!metaData?.foreignKeys?.length) {
+        setFkOptions({});
+        return;
+      }
+
+      const optionsEntries = await Promise.all(metaData.foreignKeys.map(async (fk) => {
+        try {
+          const fkRes = await fetch(`/api/obtener_${fk.referencedTable}`);
+          const fkData = await fkRes.json();
+          const rows = fkData?.rows || [];
+          const labelColumn = Object.keys(rows[0] || {}).find(c => c.toLowerCase() !== 'id') || fk.referencedColumn;
+          const parsed = rows.map(r => ({
+            value: r[fk.referencedColumn],
+            label: `${r[fk.referencedColumn]} - ${r[labelColumn] ?? ''}`
+          }));
+          return [fk.columnName, parsed];
+        } catch {
+          return [fk.columnName, []];
+        }
+      }));
+
+      setFkOptions(Object.fromEntries(optionsEntries));
+    } catch (err) {
+      console.error('Error al cargar metadatos:', err);
+      setTableMetadata(null);
+      setFkOptions({});
+    }
   };
 
   useEffect(() => {
     if (selectedTable) {
       cargarDatos();
+      cargarMetadata();
     }
   }, [selectedTable]);
 
@@ -93,14 +134,12 @@ function App() {
     return acc;
   }, {});
 
-  // Manejar cambios en el formulario
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newValue;
     if (type === 'checkbox') {
       newValue = checked ? 1 : 0;
     } else if (value !== '' && !isNaN(value) && !value.includes('e')) {
-      // si parece número, convertir a número
       newValue = Number(value);
     } else {
       newValue = value;
@@ -111,7 +150,6 @@ function App() {
     }));
   };
 
-  // Abrir formulario para nuevo registro
   const abrirFormularioNuevo = () => {
     const initial = {};
     columns.forEach(col => {
@@ -121,7 +159,6 @@ function App() {
     setMostrarFormulario(true);
   };
 
-  // Abrir formulario para editar registro
   const abrirFormularioEditar = (row) => {
     const copy = {};
     columns.forEach(col => {
@@ -130,28 +167,25 @@ function App() {
     setFormulario(copy);
     setMostrarFormulario(true);
   };
-  // Guardar registro en la tabla actual
+
   const guardarRegistro = async () => {
-    console.log('Formulario actual:', formulario);
     if (!selectedTable) return;
 
     setGuardando(true);
     try {
       const isEdit = formulario.id !== undefined && formulario.id !== null && formulario.id !== '';
       const method = isEdit ? 'PUT' : 'POST';
-      const endpoint = `/api/guardar_${selectedTable}`; // each table has its own save function
-      const dataToSend = { ...formulario };
+      const endpoint = `/api/guardar_${selectedTable}`;
 
       const response = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(dataToSend)
+        body: JSON.stringify(formulario)
       });
 
       const resultado = await response.json();
-      console.log('Respuesta del servidor:', resultado);
 
       if (response.ok) {
         alert(resultado.message);
@@ -167,13 +201,14 @@ function App() {
       setGuardando(false);
     }
   };
-  // Cerrar formulario
+
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
     setFormulario({});
   };
 
-  // vista de selección inicial
+  const isForeignKeyColumn = (col) => Boolean(tableMetadata?.foreignKeys?.some(fk => fk.columnName === col));
+
   if (!selectedTable) {
     return (
       <div style={{ padding: '20px' }}>
@@ -244,6 +279,12 @@ function App() {
       </button>
       <h1>{isViewSelected ? 'Consulta de' : 'Gestión de'} {selectedTable}</h1>
 
+      {!isViewSelected && tableMetadata?.foreignKeys?.length > 0 && (
+        <p style={{ color: '#495057', marginBottom: '16px' }}>
+          Relaciones detectadas: {tableMetadata.foreignKeys.map(fk => `${fk.columnName} → ${fk.referencedTable}.${fk.referencedColumn}`).join(' | ')}
+        </p>
+      )}
+
       {columns.length > 0 && (
         <div style={{ marginBottom: '20px', display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
           {columns.map((columna) => (
@@ -265,10 +306,9 @@ function App() {
           ))}
         </div>
       )}
-      
-      {/* Botón para agregar nuevo registro */}
+
       {!isViewSelected && (
-        <button 
+        <button
           onClick={abrirFormularioNuevo}
           style={{
             padding: '10px 20px',
@@ -285,7 +325,6 @@ function App() {
         </button>
       )}
 
-      {/* Formulario Modal */}
       {mostrarFormulario && (
         <div style={{
           position: 'fixed',
@@ -320,13 +359,32 @@ function App() {
                   const isId = col.toLowerCase() === 'id';
                   const value = formulario[col] ?? '';
                   const isBooleanField = typeof value === 'boolean' || value === 0 || value === 1;
+                  const fkChoices = fkOptions[col] || [];
 
                   return (
                     <div key={col} style={{ marginBottom: '12px' }}>
                       <label style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>
                         {col}
                       </label>
-                      {isBooleanField ? (
+                      {isForeignKeyColumn(col) ? (
+                        <select
+                          name={col}
+                          value={value}
+                          onChange={handleInputChange}
+                          disabled={guardando || isId}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          <option value="">Seleccione valor relacionado</option>
+                          {fkChoices.map(choice => (
+                            <option key={`${col}-${choice.value}`} value={choice.value}>{choice.label}</option>
+                          ))}
+                        </select>
+                      ) : isBooleanField ? (
                         <input
                           type="checkbox"
                           name={col}
@@ -389,7 +447,6 @@ function App() {
         </div>
       )}
 
-      {/* Tabla de {selectedTable} (scrollable) */}
       <div style={{ maxHeight: '80vh', overflowY: 'auto', border: '1px solid #dee2e6', marginTop: '20px' }}>
         <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
