@@ -23,7 +23,16 @@ function App() {
     'Contactos_empresas',
     'Contacto_detalle'
   ];
+
+  const viewList = [
+    'vContactosEmpresas',
+    'vEmpresas_aceptan_alumnos',
+    'vEmpresas_contactadas',
+    'vEmpresas_sin_contactar',
+    'vRecuentoEmpresas'
+  ];
   const [selectedTable, setSelectedTable] = useState(null);
+  const isViewSelected = selectedTable ? viewList.includes(selectedTable) : false;
 
   // Cargar datos de la tabla actualmente seleccionada
   const cargarDatos = () => {
@@ -142,8 +151,10 @@ function App() {
   if (!selectedTable) {
     return (
       <div style={{ padding: '20px' }}>
-        <h1>📁 Gestión de tablas</h1>
-        <p>Seleccione la tabla que desea editar:</p>
+        <h1>📁 Gestión de datos</h1>
+        <p>Seleccione una tabla para editar o una vista para consultar:</p>
+
+        <h2 style={{ marginTop: '20px', marginBottom: '10px' }}>Tablas</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
           {tableList.map(t => (
             <button
@@ -160,6 +171,27 @@ function App() {
               }}
             >
               {t}
+            </button>
+          ))}
+        </div>
+
+        <h2 style={{ marginTop: '25px', marginBottom: '10px' }}>Vistas</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+          {viewList.map(v => (
+            <button
+              key={v}
+              onClick={() => { setSelectedTable(v); setDatos([]); setColumns([]); }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {v}
             </button>
           ))}
         </div>
@@ -184,24 +216,26 @@ function App() {
       >
         ← Volver al menú
       </button>
-      <h1>Gestión de {selectedTable}</h1>
+      <h1>{isViewSelected ? 'Consulta de' : 'Gestión de'} {selectedTable}</h1>
       
       {/* Botón para agregar nuevo registro */}
-      <button 
-        onClick={abrirFormularioNuevo}
-        style={{
-          padding: '10px 20px',
-          marginBottom: '20px',
-          backgroundColor: '#007bff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          fontSize: '16px'
-        }}
-      >
-        ➕ Agregar Nuevo Registro
-      </button>
+      {!isViewSelected && (
+        <button 
+          onClick={abrirFormularioNuevo}
+          style={{
+            padding: '10px 20px',
+            marginBottom: '20px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          ➕ Agregar Nuevo Registro
+        </button>
+      )}
 
       {/* Formulario Modal */}
       {mostrarFormulario && (
@@ -315,7 +349,9 @@ function App() {
               {columns.map(key => (
                 <th key={key} style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>{key}</th>
               ))}
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>Acciones</th>
+              {!isViewSelected && (
+                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>Acciones</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -324,22 +360,24 @@ function App() {
                 {columns.map((col, i) => (
                   <td key={i} style={{ padding: '10px' }}>{fila[col]}</td>
                 ))}
-                <td style={{ padding: '10px', textAlign: 'center' }}>
-                  <button
-                    onClick={() => abrirFormularioEditar(fila)}
-                    style={{
-                      padding: '5px 10px',
-                      backgroundColor: '#ffc107',
-                      color: 'black',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      marginRight: '5px'
-                    }}
-                  >
-                    ✏️ Editar
-                  </button>
-                </td>
+                {!isViewSelected && (
+                  <td style={{ padding: '10px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => abrirFormularioEditar(fila)}
+                      style={{
+                        padding: '5px 10px',
+                        backgroundColor: '#ffc107',
+                        color: 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        marginRight: '5px'
+                      }}
+                    >
+                      ✏️ Editar
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

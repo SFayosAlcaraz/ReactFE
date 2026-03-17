@@ -1,15 +1,14 @@
 const { app } = require('@azure/functions');
-const { readTable, writeTable, allowedTables } = require('./helpers/tableHelpers');
+const { readTable, writeTable, allowedTables, readableSources } = require('./helpers/tableHelpers');
 
-// generar un par de funciones para cada tabla permitida
-allowedTables.forEach(table => {
-    // función de lectura
-    app.http(`obtener_${table}`, {
+// generar funciones de lectura para tablas y vistas permitidas
+readableSources.forEach(source => {
+    app.http(`obtener_${source}`, {
         methods: ['GET'],
         authLevel: 'anonymous',
         handler: async (request, context) => {
             try {
-                const data = await readTable(table);
+                const data = await readTable(source);
                 return { status: 200, jsonBody: data };
             } catch (err) {
                 context.error(err);
@@ -17,8 +16,10 @@ allowedTables.forEach(table => {
             }
         }
     });
+});
 
-    // función de escritura
+// generar funciones de escritura solo para tablas permitidas
+allowedTables.forEach(table => {
     app.http(`guardar_${table}`, {
         methods: ['POST', 'PUT'],
         authLevel: 'anonymous',
