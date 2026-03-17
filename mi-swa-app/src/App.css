@@ -1,42 +1,130 @@
 #root {
-  max-width: 1280px;
+  margin: 0;
+  max-width: none;
+  padding: 1rem 1.5rem 3rem;
+  text-align: left;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.menu,
+.page {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.menu-actions,
+.section-header,
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+button {
+  border: none;
+  border-radius: 8px;
+  background: #0d6efd;
+  color: #fff;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+button.secondary {
+  background: #6c757d;
 }
 
-.card {
-  padding: 2em;
+button.warn {
+  background: #f59f00;
+  color: #222;
 }
 
-.read-the-docs {
-  color: #888;
+.back {
+  margin-bottom: 1rem;
+}
+
+.section-card {
+  border: 1px solid #d9dee5;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.section-header {
+  justify-content: space-between;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.section-header p,
+.intro,
+.empty {
+  color: #5f6b7a;
+}
+
+.table-wrap {
+  overflow: auto;
+  margin-top: 0.7rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  border: 1px solid #eceff3;
+  padding: 0.45rem 0.55rem;
+}
+
+th {
+  background: #f5f8fb;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.7rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+input,
+select {
+  border: 1px solid #c8d1dc;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: min(900px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: 1fr;
 }
