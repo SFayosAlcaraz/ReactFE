@@ -279,6 +279,12 @@ select {
   border: 1px solid #e1e8ef;
 }
 
+.admin-card .table-wrap {
+  max-height: 28.5rem;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
 table {
   width: max-content;
   min-width: 100%;
@@ -297,6 +303,9 @@ td {
 th {
   background: #f2f7fb;
   color: #22415c;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .form-grid {
